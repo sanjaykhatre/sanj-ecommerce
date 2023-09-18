@@ -1,10 +1,17 @@
+import React from "react";
 import "./App.css";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import SignIn from "./components/auth/SignIn";
+import SingUp from "./components/auth/SignUp";
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">hlw world</header>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<SingUp />} />
+        <Route path="/signIn" element={<SignIn />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

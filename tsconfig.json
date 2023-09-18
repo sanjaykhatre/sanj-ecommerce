@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "target": "esnext",
+    "module": "ESNext",
+    "allowJs": true,
+    "checkJs": false,
+    "outDir": "build",
+    "rootDir": ".",
+    "types": ["node","vite/client"],
+    "strict": false,
+    "esModuleInterop": true /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */,
+    "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
+    "declaration": true /* Generates corresponding '.d.ts' file. */,
+    "strictNullChecks": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "baseUrl": "./",
+    "paths": {
+      "*": ["*", "src/*", "src/setup/*", "src/logic/*", "src/models/*", "config/*"]
+    },
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": false
+  },
+  "exclude": ["node_modules", "dist"],
+  "include": ["./src", "./test", "./*", "./config"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
