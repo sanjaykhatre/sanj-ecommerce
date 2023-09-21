@@ -1,23 +1,27 @@
-import { initializeApp } from "firebase/app";
+import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { getFunctions } from "firebase/functions";
 import { app } from "../helpers/config";
-import {
-  getFirestore,
-  getDoc,
-  collection,
-  getDocs,
-  doc,
-  addDoc,
-  updateDoc,
-  setDoc,
-  deleteDoc,
-  onSnapshot,
-  query,
-  where,
-  collectionGroup,
-  writeBatch,
-} from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 const functions = getFunctions(app);
 export const auth = getAuth(app);
+
+export function initFirebase(
+  authenticated?: (isAuthenticated: boolean) => void
+) {
+  return onAuthStateChanged(auth, async (user) => {
+    if (authenticated !== undefined && user !== null) {
+      const accessToken = await user.getIdToken();
+
+      if (accessToken.length) {
+        authenticated(true);
+      } else {
+        authenticated(false);
+      }
+    } else if (authenticated !== undefined) {
+      authenticated(false);
+    }
+  });
+}
+export async function logout() {
+  await signOut(auth);
+}
