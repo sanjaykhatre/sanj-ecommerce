@@ -1,4 +1,3 @@
-// src/components/TaskPage.js
 import React, { useContext, useEffect, useState } from "react";
 import {
   Container,
@@ -14,6 +13,11 @@ import {
   Chip,
   Autocomplete,
   Grid,
+  Divider,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -23,48 +27,83 @@ import { UserContext } from "src/App";
 import {
   addUpdateTask,
   deleteTaskFb,
+  fetchEnrolledStudentsBySubject,
+  findAndUpdateTaskWithComment,
+  getAllSubjectsForUser,
   getTasksForUser,
+  uploadFileToFirebase,
 } from "src/controllers/Firebase";
-
-const students = ["John Doe", "Jane Smith", "Tom Johnson"]; // Replace with your student list
+import { SubjectContext } from "../context/SubjectContext";
+import { TaskStatus } from "./TaskStatus";
 
 const TaskPage = () => {
   const { tasks, addTask, editTask, deleteTask } = useContext(TaskContext);
+  const [students, setStudents] = useState([]);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [viewMode, setViewMode] = useState(false);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [commentInput, setCommentInput] = useState("");
+  const [file, setFile] = useState(null);
+
   const [currentTask, setCurrentTask] = useState({
     id: "",
     title: "",
     description: "",
+    subject: [],
     assignedTo: [],
+    comments: [],
+    startDate: "",
+    endDate: "",
+    status: TaskStatus.TODO,
+    completedFileUrl: "",
   });
 
-  const { user } = useContext(UserContext);
-  async function getTask() {
-    const userCreatedTask = await getTasksForUser(user.id);
-    if (userCreatedTask?.length) {
-      userCreatedTask.map((tsk) => {
-        addTask(tsk);
-      });
-    }
-  }
+  const { subjects, addSubject } = useContext(SubjectContext);
 
   useEffect(() => {
-    if (user.id) {
-      getTask();
-      // @ts-ignore
-    }
-  }, []);
+    const fetchSubjects = async () => {
+      const subjects = await getAllSubjectsForUser();
+      if (subjects.length) {
+        subjects.forEach((subj) => addSubject(subj));
+      }
+    };
+    fetchSubjects();
+  }, [addSubject]);
 
-  console.log({ user });
-  const handleOpen = (task = null) => {
-    if (task) {
-      setCurrentTask(task);
-      setEditMode(true);
+  const { user } = useContext(UserContext);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      if (user?.id) {
+        const userTasks = await getTasksForUser(user.id);
+        if (userTasks?.length) {
+          userTasks.forEach((tsk) => addTask(tsk));
+        }
+      }
+    };
+    fetchTasks();
+  }, [user, addTask]);
+
+  const handleOpen = (recentTask = null, isViewMode = false) => {
+    if (recentTask) {
+      setCurrentTask(recentTask);
+      setViewMode(isViewMode);
+      setEditMode(!isViewMode);
     } else {
-      setCurrentTask({ id: "", title: "", description: "", assignedTo: [] });
-      setEditMode(false);
+      setCurrentTask({
+        id: "",
+        title: "",
+        description: "",
+        assignedTo: [],
+        comments: [],
+        startDate: "",
+        endDate: "",
+        status: TaskStatus.TODO,
+        completedFileUrl: "",
+      });
+      setViewMode(false);
     }
     setOpen(true);
   };
@@ -75,27 +114,75 @@ const TaskPage = () => {
   };
 
   const handleSave = async () => {
-    if (!currentTask?.title?.length) {
+    if (
+      !currentTask?.title?.length ||
+      !currentTask?.startDate?.length ||
+      !currentTask?.endDate?.length
+    ) {
       setError(true);
       return;
     }
     if (editMode) {
       editTask(currentTask);
-
-      handleClose();
       await addUpdateTask(currentTask, false, user);
     } else {
-      const task = { ...currentTask, id: Date.now().valueOf() };
-      addTask(task);
-      handleClose();
-      await addUpdateTask(task, true, user);
+      const newTask = { ...currentTask, id: Date.now().valueOf() };
+      addTask(newTask);
+      await addUpdateTask(newTask, true, user);
+    }
+    handleClose();
+  };
+
+  const handleAddComment = () => {
+    if (commentInput.trim()) {
+      const newComment = {
+        user: user.username,
+        text: commentInput.trim(),
+        date: Date.now().valueOf(),
+        userId: user.id,
+      };
+      const updatedTask = {
+        ...currentTask,
+        comments: [...(currentTask.comments || []), newComment],
+      };
+      setCurrentTask(updatedTask);
+      editTask(updatedTask);
+      findAndUpdateTaskWithComment(updatedTask);
+      setCommentInput("");
     }
   };
 
-  async function handleDelete(task) {
+  const handleDelete = async (task) => {
     deleteTask(task.id);
-
     await deleteTaskFb(task.id, user);
+  };
+
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
+  };
+
+  const handleUploadFile = async () => {
+    if (file) {
+      const fileUrl = await uploadFileToFirebase(
+        file,
+        `tasks/${currentTask.id}/completedFiles`
+      );
+      const updatedTask = {
+        ...currentTask,
+        completedFileUrl: fileUrl,
+      };
+      setCurrentTask(updatedTask);
+      editTask(updatedTask);
+      await addUpdateTask(updatedTask, false, user);
+      setFile(null);
+    }
+  };
+
+  async function loadEnrolledStudents(newValue) {
+    setLoading(true);
+    const students = await fetchEnrolledStudentsBySubject(user.id, newValue.id);
+    setStudents(students);
+    setLoading(false);
   }
 
   return (
@@ -120,25 +207,39 @@ const TaskPage = () => {
                 borderRadius: "8px",
                 position: "relative",
               }}
+              onClick={() => handleOpen(task, true)} // Open dialog in view mode
             >
               <Typography variant="h6">{task.title}</Typography>
               <Typography variant="body2" sx={{ my: 1 }}>
                 {task.description}
               </Typography>
+              <Typography variant="body2" sx={{ my: 1 }}>
+                Status: {task.status}
+              </Typography>
               <Box sx={{ my: 1 }}>
                 {task.assignedTo.map((student, index) => (
-                  <Chip key={index} label={student} sx={{ mr: 1, mb: 1 }} />
+                  <Chip
+                    key={index}
+                    label={student.username}
+                    sx={{ mr: 1, mb: 1 }}
+                  />
                 ))}
               </Box>
               <IconButton
                 sx={{ position: "absolute", top: 8, right: 8 }}
-                onClick={() => handleOpen(task)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpen(task);
+                }}
               >
                 <EditIcon />
               </IconButton>
               <IconButton
                 sx={{ position: "absolute", top: 8, right: 50 }}
-                onClick={() => handleDelete(task)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(task);
+                }}
               >
                 <DeleteIcon />
               </IconButton>
@@ -149,7 +250,9 @@ const TaskPage = () => {
 
       {/* Task Dialog */}
       <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>{editMode ? "Edit Task" : "Add Task"}</DialogTitle>
+        <DialogTitle>
+          {viewMode ? "Task Details" : editMode ? "Edit Task" : "Add Task"}
+        </DialogTitle>
         <DialogContent>
           <TextField
             margin="dense"
@@ -158,6 +261,7 @@ const TaskPage = () => {
             fullWidth
             value={currentTask.title}
             required={true}
+            disabled={viewMode}
             onChange={(e) =>
               setCurrentTask({ ...currentTask, title: e.target.value })
             }
@@ -170,21 +274,124 @@ const TaskPage = () => {
             multiline
             rows={4}
             value={currentTask.description}
+            disabled={viewMode}
             onChange={(e) =>
               setCurrentTask({ ...currentTask, description: e.target.value })
             }
           />
-          <Autocomplete
-            multiple
-            options={students}
-            getOptionLabel={(option) => option}
-            value={currentTask.assignedTo}
-            onChange={(event, newValue) =>
-              setCurrentTask({ ...currentTask, assignedTo: newValue })
+          <TextField
+            margin="dense"
+            label="Start Date"
+            type="date"
+            fullWidth
+            required={true}
+            value={currentTask.startDate}
+            disabled={viewMode}
+            onChange={(e) =>
+              setCurrentTask({ ...currentTask, startDate: e.target.value })
             }
+            InputLabelProps={{
+              shrink: true,
+            }}
+          />
+          <TextField
+            margin="dense"
+            label="End Date"
+            type="date"
+            fullWidth
+            required={true}
+            value={currentTask.endDate}
+            disabled={viewMode}
+            onChange={(e) =>
+              setCurrentTask({ ...currentTask, endDate: e.target.value })
+            }
+            InputLabelProps={{
+              shrink: true,
+            }}
+          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={currentTask.status}
+              onChange={(e) =>
+                setCurrentTask({ ...currentTask, status: e.target.value })
+              }
+              disabled={viewMode}
+            >
+              <MenuItem value={TaskStatus.TODO}>To Do</MenuItem>
+              <MenuItem value={TaskStatus.IN_PROGRESS}>In Progress</MenuItem>
+              <MenuItem value={TaskStatus.COMPLETED}>Completed</MenuItem>
+            </Select>
+          </FormControl>
+
+          {currentTask.status === TaskStatus.COMPLETED && !viewMode && (
+            <>
+              <Button variant="contained" component="label" sx={{ mt: 2 }}>
+                Upload File
+                <input type="file" hidden onChange={handleFileChange} />
+              </Button>
+              {file && (
+                <Button
+                  variant="contained"
+                  sx={{ mt: 2 }}
+                  onClick={handleUploadFile}
+                >
+                  Submit File
+                </Button>
+              )}
+            </>
+          )}
+
+          <Autocomplete
+            options={subjects}
+            getOptionLabel={(option) => option?.name}
+            value={currentTask?.subject}
+            disabled={viewMode}
+            onChange={(event, newValue) => {
+              loadEnrolledStudents(newValue);
+              setCurrentTask({ ...currentTask, subject: newValue });
+            }}
             renderTags={(value, getTagProps) =>
               value.map((option, index) => (
-                <Chip label={option} {...getTagProps({ index })} key={index} />
+                <Chip
+                  label={option.name}
+                  {...getTagProps({ index })}
+                  key={index}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                variant="outlined"
+                label="Subject"
+                placeholder="Select Subject"
+              />
+            )}
+          />
+          <Autocomplete
+            multiple
+            options={students || []}
+            getOptionLabel={(option) => option.username || ""}
+            value={currentTask.assignedTo || []}
+            disabled={viewMode || !students?.length}
+            onChange={(event, newValue) => {
+              const updatedAssignedTo = newValue.map((student) => ({
+                id: student.id,
+                username: student.username,
+              }));
+              setCurrentTask({
+                ...currentTask,
+                assignedTo: updatedAssignedTo,
+              });
+            }}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  label={option.username}
+                  {...getTagProps({ index })}
+                  key={index}
+                />
               ))
             }
             renderInput={(params) => (
@@ -196,13 +403,52 @@ const TaskPage = () => {
               />
             )}
           />
+
+          {viewMode && (
+            <>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="h6">Comments</Typography>
+              <Box sx={{ maxHeight: 200, overflow: "auto", my: 2 }}>
+                {currentTask?.comments?.length > 0 ? (
+                  currentTask.comments.map((comment, index) => (
+                    <Box key={index} sx={{ mb: 2 }}>
+                      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                        {comment.user}:
+                      </Typography>
+                      <Typography variant="body2">{comment.text}</Typography>
+                    </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2">No comments yet</Typography>
+                )}
+              </Box>
+              <TextField
+                margin="dense"
+                label="Add a comment"
+                type="text"
+                fullWidth
+                multiline
+                rows={2}
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+              />
+              <Button
+                onClick={handleAddComment}
+                variant="contained"
+                sx={{ mt: 2 }}
+              >
+                Add Comment
+              </Button>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained">
-            {editMode ? "Update" : "Add"}
-          </Button>
-          <br />
+          {!viewMode && (
+            <Button onClick={handleSave} variant="contained">
+              {editMode ? "Update" : "Add"}
+            </Button>
+          )}
         </DialogActions>
         {error && "Complete the required fields!"}
       </Dialog>

@@ -7,12 +7,14 @@ export const TaskProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
 
   const addTask = (task) => {
-    const existingTask = tasks.find((t) => t.id === task.id);
-    if (existingTask) {
-      console.error("Task ID already exists. Please use a unique ID.");
-      return;
-    }
-    setTasks([...tasks, { ...task, id: task.id }]);
+    setTasks((prevTasks) => {
+      const existingTask = prevTasks.find((t) => t.id === task.id);
+      if (existingTask) {
+        console.error("Task ID already exists. Please use a unique ID.");
+        return prevTasks; // Return the previous state without any changes
+      }
+      return [...prevTasks, { ...task, id: task.id }]; // Append the new task
+    });
   };
 
   const editTask = (updatedTask) => {

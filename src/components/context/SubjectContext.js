@@ -6,13 +6,14 @@ export const SubjectContext = createContext();
 export const SubjectProvider = ({ children }) => {
   const [subjects, setSubjects] = useState([]);
 
-  const addSubject = (subject) => {
-    const existingTask = subjects.find((s) => s.id === subject.id);
-    if (existingTask) {
-      console.error("Task ID already exists. Please use a unique ID.");
-      return;
-    }
-    setSubjects([...subjects, { ...subject, id: subject.id }]);
+  const addSubject = (newSubject) => {
+    setSubjects((prevSubjects) => {
+      // Ensure the subject is not a duplicate (based on id)
+      if (prevSubjects.find((subject) => subject.id === newSubject.id)) {
+        return prevSubjects; // If duplicate, return previous subjects without adding
+      }
+      return [...prevSubjects, newSubject]; // Append new subject to the existing state
+    });
   };
 
   const editSubject = (updatedSubject) => {

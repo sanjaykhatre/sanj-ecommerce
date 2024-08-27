@@ -13,12 +13,15 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import {
   updateProfile as firebaseUpdateProfile,
@@ -210,9 +213,8 @@ export const addOrUpdateSubjectInFirestore = async (subject, editMode) => {
     const subjectsCollectionRef = collection(userDocRef, "subjects");
 
     // Reference to the specific subject document
-    const subjectDocRef = editMode
-      ? doc(subjectsCollectionRef, subject.id) // For editing, reference the existing document
-      : doc(subjectsCollectionRef); // For adding, create a new document
+    const subjectDocRef = doc(subjectsCollectionRef, `${subject.id}`); // For editing, reference the existing document
+    // For adding, create a new document
 
     // Prepare the subject data
     const subjectData = {
@@ -276,6 +278,7 @@ export const deleteSubjectFromFirestore = async (subjectId) => {
 export const getAllSubjectsForUser = async () => {
   try {
     const user = auth.currentUser;
+    console.log("heee", { user });
     if (!user) throw new Error("No user is currently logged in.");
 
     // Reference to the 'subjects' subcollection within the user's document
@@ -296,3 +299,177 @@ export const getAllSubjectsForUser = async () => {
     throw error;
   }
 };
+
+export const fetchAvailableSubjects = async (setAvailableSubjects) => {
+  try {
+    const querySnapshot = await getDocs(collectionGroup(db, "subjects"));
+    const fetchedSubjects = [];
+
+    for (const subjectDoc of querySnapshot.docs) {
+      const subjectData = subjectDoc.data();
+      const professorDocRef = doc(db, "users", subjectData.professorId);
+      const professorDoc = await getDoc(professorDocRef);
+
+      const professorName = professorDoc.exists()
+        ? professorDoc.data().username
+        : "Unknown";
+      // @ts-ignore
+      fetchedSubjects.push({
+        id: subjectDoc.id,
+        ...subjectData,
+        professorName,
+      });
+    }
+
+    setAvailableSubjects(fetchedSubjects);
+  } catch (error) {
+    console.error("Error fetching subjects:", error);
+  }
+};
+export const addSubjectToUser = async (userId, subject) => {
+  try {
+    const userDocRef = doc(db, "users", userId);
+    await updateDoc(userDocRef, {
+      enrolledSubjects: arrayUnion(subject.id),
+    });
+    console.log(`Subject ${subject.id} added to user ${userId}`);
+  } catch (error) {
+    console.error("Error adding subject to user:", error);
+  }
+};
+export const addUserToSubject = async (subject, user) => {
+  console.log({ subject, user });
+  try {
+    const subjectDocRef = doc(
+      db,
+      "users",
+      subject.professorId,
+      "subjects",
+      subject.id
+    );
+    await updateDoc(subjectDocRef, {
+      students: arrayUnion(user.id),
+    });
+    console.log(`User ${user} added to subject ${subject.id}`);
+  } catch (error) {
+    console.error("Error adding user to subject:", error);
+  }
+};
+export const removeSubjectFromUser = async (userId, subject) => {
+  try {
+    // Remove the subject from the user's enrolledSubjects array
+    const userDocRef = doc(db, "users", userId);
+    await updateDoc(userDocRef, {
+      enrolledSubjects: arrayRemove(subject.id),
+    });
+
+    // Remove the user from the subject's students array
+    const subjectDocRef = doc(
+      db,
+      "users",
+      subject.professorId,
+      "subjects",
+      subject.id
+    );
+    await updateDoc(subjectDocRef, {
+      students: arrayRemove(userId),
+    });
+
+    console.log(`Subject ${subject} removed from user ${userId}`);
+    console.log(`User ${userId} removed from subject ${subject}`);
+  } catch (error) {
+    console.error("Error removing subject or student:", error);
+  }
+};
+
+export async function loadEnrolledSubjects(
+  enrolledSubjectIds,
+  setEnrolledSubjects
+) {
+  try {
+    if (enrolledSubjectIds.length === 0) {
+      setEnrolledSubjects([]);
+      return;
+    }
+
+    // Query the subjects collection group to find the subjects with matching IDs
+    const subjectsQuery = query(
+      collectionGroup(db, "subjects"),
+      where("id", "in", enrolledSubjectIds)
+    );
+
+    const querySnapshot = await getDocs(subjectsQuery);
+
+    const enrolledSubjectsData = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    console.log({ enrolledSubjectIds });
+    // Set the enrolled subjects data in state
+    setEnrolledSubjects(enrolledSubjectsData);
+  } catch (error) {
+    console.error("Error loading enrolled subjects:", error);
+  }
+}
+
+export async function findAndUpdateTaskWithComment(task) {
+  try {
+    // Query the collection group to find the document with the given taskId
+    const q = query(collectionGroup(db, "tasks"), where("id", "==", task.id));
+
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0]; // Get the first document only
+
+      // Update the document with the new comment
+      await updateDoc(doc.ref, {
+        comments: task.comments,
+      });
+
+      console.log("Comment added successfully");
+    } else {
+      console.log("No task found with the provided ID");
+    }
+  } catch (error) {
+    console.error("Error updating task with comment: ", error);
+  }
+}
+export async function fetchEnrolledStudentsBySubject(userId, subjectId) {
+  try {
+    // Step 1: Reference the specific subject document
+    const subjectRef = doc(db, `users/${userId}/subjects`, subjectId);
+
+    // Step 2: Get the subject document
+    const subjectSnapshot = await getDoc(subjectRef);
+
+    if (!subjectSnapshot.exists()) {
+      console.log("Subject not found.");
+      return [];
+    }
+
+    // Step 3: Retrieve enrolled student IDs from the subject document
+    const subjectData = subjectSnapshot.data();
+    const enrolledStudentIds = subjectData.students || []; // Default to an empty array if none
+    console.log({ enrolledStudentIds });
+
+    // Step 4: Fetch data for each enrolled student
+    const studentsData = [];
+    if (enrolledStudentIds.length > 0) {
+      const studentsRef = collection(db, "users");
+      const q = query(studentsRef, where("id", "in", enrolledStudentIds));
+
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        // @ts-ignore
+        studentsData.push(doc.data());
+      });
+    }
+
+    console.log({ studentsData });
+    return studentsData;
+  } catch (error) {
+    console.error("Error fetching enrolled students: ", error);
+    throw error;
+  }
+}
