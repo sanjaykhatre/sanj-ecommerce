@@ -34,8 +34,13 @@ import {
   uploadFileToFirebase,
 } from "src/controllers/Firebase";
 import { SubjectContext } from "../context/SubjectContext";
-import { TaskStatus } from "./TaskStatus";
-
+import { LoadingContainer } from "../Dashboard";
+import { ClipLoader } from "react-spinners";
+export const TaskStatus = Object.freeze({
+  TODO: "To Do",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
+});
 const TaskPage = () => {
   const { tasks, addTask, editTask, deleteTask } = useContext(TaskContext);
   const [students, setStudents] = useState([]);
@@ -75,16 +80,20 @@ const TaskPage = () => {
   const { user } = useContext(UserContext);
 
   useEffect(() => {
-    const fetchTasks = async () => {
-      if (user?.id) {
-        const userTasks = await getTasksForUser(user.id);
-        if (userTasks?.length) {
-          userTasks.forEach((tsk) => addTask(tsk));
+    if (!tasks?.length) {
+      setLoading(true);
+      const fetchTasks = async () => {
+        if (user?.id) {
+          const userTasks = await getTasksForUser(user);
+          if (userTasks?.length) {
+            userTasks.forEach((tsk) => addTask(tsk));
+          }
+          setLoading(false);
         }
-      }
-    };
-    fetchTasks();
-  }, [user, addTask]);
+      };
+      fetchTasks();
+    }
+  }, []);
 
   const handleOpen = (recentTask = null, isViewMode = false) => {
     if (recentTask) {
@@ -111,6 +120,7 @@ const TaskPage = () => {
   const handleClose = () => {
     setOpen(false);
     setError(false);
+    setEditMode(false);
   };
 
   const handleSave = async () => {
@@ -126,8 +136,16 @@ const TaskPage = () => {
       editTask(currentTask);
       await addUpdateTask(currentTask, false, user);
     } else {
-      const newTask = { ...currentTask, id: Date.now().valueOf() };
+      const keyId = user.role === "admin" ? "professorId" : "studentId";
+      const newTask = {
+        ...currentTask,
+        id: Date.now().valueOf(),
+        [keyId]: user.id,
+      };
+      console.log("nee", newTask);
+
       addTask(newTask);
+
       await addUpdateTask(newTask, true, user);
     }
     handleClose();
@@ -185,6 +203,22 @@ const TaskPage = () => {
     setLoading(false);
   }
 
+  function handleFieldDisplay() {
+    console.log({ user, currentTask, viewMode });
+    if (user.role == "student" && !viewMode && currentTask?.professorId) {
+      return true;
+    }
+    return false;
+  }
+
+  if (loading) {
+    return (
+      <LoadingContainer>
+        <ClipLoader color={"#123abc"} loading={loading} size={50} />
+      </LoadingContainer>
+    );
+  }
+
   return (
     <Container>
       <Box sx={{ display: "flex", justifyContent: "space-between", my: 3 }}>
@@ -198,7 +232,7 @@ const TaskPage = () => {
         </Button>
       </Box>
       <Grid container spacing={3}>
-        {tasks.map((task) => (
+        {tasks?.map((task) => (
           <Grid item xs={12} sm={6} md={4} key={task.id}>
             <Box
               sx={{
@@ -281,6 +315,7 @@ const TaskPage = () => {
           />
           <TextField
             margin="dense"
+            style={{ display: handleFieldDisplay() ? "none" : "block" }}
             label="Start Date"
             type="date"
             fullWidth
@@ -296,6 +331,7 @@ const TaskPage = () => {
           />
           <TextField
             margin="dense"
+            style={{ display: handleFieldDisplay() ? "none" : "block" }}
             label="End Date"
             type="date"
             fullWidth
@@ -344,9 +380,10 @@ const TaskPage = () => {
 
           <Autocomplete
             options={subjects}
+            style={{ display: handleFieldDisplay() ? "none" : "block" }}
             getOptionLabel={(option) => option?.name}
             value={currentTask?.subject}
-            disabled={viewMode}
+            disabled={viewMode || user.role !== "admin"}
             onChange={(event, newValue) => {
               loadEnrolledStudents(newValue);
               setCurrentTask({ ...currentTask, subject: newValue });
@@ -371,6 +408,7 @@ const TaskPage = () => {
           />
           <Autocomplete
             multiple
+            style={{ display: handleFieldDisplay() ? "none" : "block" }}
             options={students || []}
             getOptionLabel={(option) => option.username || ""}
             value={currentTask.assignedTo || []}

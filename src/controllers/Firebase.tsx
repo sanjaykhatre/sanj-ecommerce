@@ -7,7 +7,7 @@ import {
   updatePassword,
   type User,
 } from "firebase/auth";
-import { getFunctions } from "firebase/functions";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { app, db } from "../helpers/config";
 import {
   arrayRemove,
@@ -69,20 +69,40 @@ export async function addUpdateTask(
   add: boolean,
   userInfo: any
 ) {
+  console.log({ taskInfo, add, userInfo });
   try {
-    console.log({ taskInfo, add, userInfo });
-
     // Get the current user’s document reference
     // @ts-ignore
     const userDocRef = doc(db, "users", auth.currentUser?.uid);
 
     if (add) {
       // Add a new task
+      // @ts-ignore
+
       await updateDoc(userDocRef, {
         taskIds: userInfo?.taskIds?.length
           ? [...userInfo.taskIds, taskInfo.id]
           : [taskInfo.id],
       });
+      if (taskInfo?.assignedTo?.length) {
+        for (const index in taskInfo?.assignedTo) {
+          // @ts-ignore
+          const studentDocRef = doc(
+            db,
+            "users",
+            taskInfo?.assignedTo[index].id
+          );
+          await updateDoc(studentDocRef, {
+            notifications: arrayUnion({
+              id: Date.now().valueOf(),
+              seen: false,
+              assignerName: userInfo.username,
+              taskId: taskInfo.id,
+              professorId: userInfo.id,
+            }),
+          });
+        }
+      }
     } else {
       // Update an existing task: No need to update taskIds, only update task data
       console.log("Updating existing task:", taskInfo.id);
@@ -90,11 +110,7 @@ export async function addUpdateTask(
 
     // Create or update the task document in the 'tasks' subcollection
     const taskDocRef = doc(userDocRef, "tasks", `${taskInfo.id}`);
-    await setDoc(
-      taskDocRef,
-      { ...taskInfo, professorId: userInfo.id },
-      { merge: true }
-    );
+    await setDoc(taskDocRef, taskInfo);
 
     console.log(
       add ? "Task added successfully!" : "Task updated successfully!"
@@ -103,30 +119,63 @@ export async function addUpdateTask(
     console.log("Error while adding/updating task", e);
   }
 }
-
-export const getTasksForUser = async (userId) => {
+export const fetchAllTasks = async () => {
   try {
+    // Fetch all tasks from the 'tasks' collection group
+    const tasksQuery = collectionGroup(db, "tasks");
+    const tasksSnapshot = await getDocs(tasksQuery);
+
+    // Map through the documents and return the data
+    const tasks = tasksSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    console.log("ALL", { tasks });
+
+    return tasks;
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    throw error; // Handle error in caller function
+  }
+};
+
+export const getTasksForUser = async (user) => {
+  try {
+    console.log("innnnnnnnnnn");
+    const userId = user?.id;
+
     // Ensure that userId is a string
     if (typeof userId !== "string") {
       throw new Error("User ID must be a string");
     }
 
-    // Reference the 'tasks' subcollection under the user's document
-    const tasksSubcollectionRef = collection(db, "users", userId, "tasks");
+    // Combine task IDs from notifications and other sources
+    let notificationTaskIds =
+      user.notifications?.map((noti) => noti.taskId) || [];
 
-    // Get all the documents in the 'tasks' subcollection
-    const querySnapshot = await getDocs(tasksSubcollectionRef);
+    if (user?.taskIds?.length) {
+      notificationTaskIds = [...notificationTaskIds, ...user?.taskIds];
+    }
 
-    // Map through the documents and return the data
-    const tasks = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    notificationTaskIds = [...new Set(notificationTaskIds)];
+    console.log({ notificationTaskIds });
 
-    return tasks;
+    if (notificationTaskIds.length === 0) {
+      return []; // No task IDs to query
+    }
+    console.log({ notificationTaskIds });
+    // Fetch all tasks from the collection group
+    const allTasks = await fetchAllTasks();
+
+    // Filter tasks on the client-side by task IDs
+    const filteredTasks = allTasks.filter((task) =>
+      notificationTaskIds.includes(task.id)
+    );
+
+    return filteredTasks;
   } catch (error) {
     console.error("Error retrieving tasks:", error);
-    throw error; // You can handle this error in the caller function
+    throw error; // Handle error in caller function
   }
 };
 export async function deleteTaskFb(taskId: string, userInfo: any) {
@@ -472,4 +521,21 @@ export async function fetchEnrolledStudentsBySubject(userId, subjectId) {
     console.error("Error fetching enrolled students: ", error);
     throw error;
   }
+}
+export async function uploadFileToFirebase(file, path) {
+  const storage = getStorage();
+  const fileRef = ref(storage, path);
+
+  await uploadBytes(fileRef, file);
+  const fileUrl = await getDownloadURL(fileRef);
+
+  return fileUrl;
+}
+
+export async function markNotificationsAsSeen(userId, notifications) {
+  const userDocRef = doc(db, "users", userId);
+
+  await updateDoc(userDocRef, {
+    notifications: notifications,
+  });
 }
