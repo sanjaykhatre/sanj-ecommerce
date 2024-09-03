@@ -18,7 +18,7 @@
     "sourceMap": true,
     "baseUrl": "./",
     "paths": {
-      "*": ["*", "src/*", "src/setup/*", "src/logic/*", "src/models/*", "config/*"]
+      "*": ["*", "src/*", "src/setup/*", "src/logic/*", "src/models/*", "config/*,"]
     },
     "isolatedModules": true,
     "skipLibCheck": true,

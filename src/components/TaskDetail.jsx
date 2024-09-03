@@ -31,6 +31,9 @@ const TaskDetailContainer = styled.div`
   background-color: #f8f9fa;
   border-left: 1px solid #ddd;
   animation: ${slideIn} 0.5s ease-in-out;
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
 `;
 
 const TaskDetailBox = styled.div`
@@ -41,6 +44,13 @@ const TaskDetailBox = styled.div`
   margin-bottom: 2rem;
   border-left: 5px solid ${(props) => (props.isToday ? "#28a745" : "#007bff")};
   animation: ${slideIn} 0.5s ease-in-out;
+  transition: transform 0.3s ease;
+  &:hover {
+    transform: translateY(-5px);
+  }
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
 `;
 
 const NoTaskBox = styled.div`
@@ -68,11 +78,18 @@ const Button = styled.button`
     background: #0056b3;
   }
 `;
+
 const TaskProgress = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: 1rem;
+  font-weight: bold;
+  color: #333;
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 `;
 
 const TaskDetail = () => {
@@ -112,9 +129,9 @@ const TaskDetail = () => {
   return (
     <TaskDetailContainer>
       <TaskDetailBox isToday={isTaskToday}>
-        <h3>Hot Task</h3>
-        <h4>{nearestTask.title}</h4>
-        <p>{nearestTask.description}</p>
+        <h3 style={{ color: isTaskToday ? "#28a745" : "#007bff" }}>Hot Task</h3>
+        <h4 style={{ color: "#333" }}>{nearestTask.title}</h4>
+        <p style={{ color: "#666" }}>{nearestTask.description}</p>
         <TaskProgress>
           <span>
             Start Date:{" "}
@@ -133,11 +150,12 @@ const TaskDetail = () => {
             marginTop: "1rem",
           }}
         >
-          <div>{nearestTask.subject?.name || "No Subject"}</div>
+          <div style={{ color: "#666" }}>
+            {nearestTask.subject?.name || "No Subject"}
+          </div>
           <Button
             onClick={() => {
-              // Handle "Go To Detail" click event
-              // Navigate to the task detail page or show more details
+              navigate(`/task`);
             }}
           >
             Go To Detail
