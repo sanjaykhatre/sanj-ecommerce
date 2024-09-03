@@ -22,18 +22,31 @@ ChartJS.register(
   Legend
 );
 
+const primaryColor = "#007bff"; // Consistent primary color
+const secondaryColor = "#ffc107"; // Secondary color
+const successColor = "#28a745"; // Success color
+const backgroundColor = "#f0f4f8"; // Soft background color for consistency
+const whiteColor = "#ffffff"; // White color for cards and backgrounds
+
 const TaskOverviewContainer = styled.div`
   flex: 2;
   padding: 2rem;
+  background: ${backgroundColor};
+  border-radius: 8px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 1rem;
 `;
 
 const Title = styled.h2`
   margin-bottom: 1.5rem;
+  color: #333;
+  text-align: center;
 `;
 
 const TaskTable = styled.table`
   width: 100%;
   border-collapse: collapse;
+  margin-bottom: 2rem;
 `;
 
 const TableRow = styled.tr`
@@ -42,6 +55,7 @@ const TableRow = styled.tr`
 
 const TableCell = styled.td`
   padding: 1rem;
+  text-align: center;
 `;
 
 const Progress = styled.div`
@@ -49,6 +63,8 @@ const Progress = styled.div`
   border-radius: 5px;
   overflow: hidden;
   height: 8px;
+  width: 100px;
+  margin: 0 auto;
 `;
 
 const ProgressBar = styled.div`
@@ -56,10 +72,10 @@ const ProgressBar = styled.div`
   width: ${(props) => props.width};
   background-color: ${(props) =>
     props.status === "Completed"
-      ? "#28a745"
+      ? successColor
       : props.status === "In Progress"
-      ? "#ffc107"
-      : "#007bff"};
+      ? secondaryColor
+      : primaryColor};
 `;
 
 const AnalyticsContainer = styled.div`
@@ -70,7 +86,7 @@ const AnalyticsContainer = styled.div`
 `;
 
 const AnalyticsBox = styled.div`
-  background-color: #f8f9fa;
+  background-color: ${whiteColor};
   border-radius: 8px;
   padding: 1rem;
   text-align: center;
@@ -78,6 +94,9 @@ const AnalyticsBox = styled.div`
   flex: 1;
   margin: 1rem;
   min-width: 250px;
+  @media (max-width: 768px) {
+    min-width: 100%;
+  }
 `;
 
 const TaskOverview = () => {
@@ -99,7 +118,7 @@ const TaskOverview = () => {
       {
         label: "Tasks",
         data: [todoTasks, inProgressTasks, completedTasks],
-        backgroundColor: ["#007bff", "#ffc107", "#28a745"],
+        backgroundColor: [primaryColor, secondaryColor, successColor],
       },
     ],
   };
@@ -110,7 +129,7 @@ const TaskOverview = () => {
       {
         label: "Tasks",
         data: [todoTasks, inProgressTasks, completedTasks],
-        backgroundColor: ["#007bff", "#ffc107", "#28a745"],
+        backgroundColor: [primaryColor, secondaryColor, successColor],
       },
     ],
   };

@@ -15,21 +15,31 @@ import {
   Slide,
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import MenuIcon from "@mui/icons-material/Menu";
 import { Box } from "@mui/system";
 import { logout, markNotificationsAsSeen } from "src/controllers/Firebase";
 import { UserContext } from "src/App";
 import { useNavigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
 
-// Define the fade-in animation
+// Define animations
 const fadeIn = keyframes`
   from {
     opacity: 0;
-    transform: translateY(-20px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+`;
+
+const slideIn = keyframes`
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
   }
 `;
 
@@ -40,6 +50,35 @@ const PortalText = styled(Typography)`
   left: 50%;
   transform: translateX(-50%);
   font-weight: bold;
+  color: ${(props) => (props.isAdmin ? "#ff5722" : "#03a9f4")};
+  @media (max-width: 768px) {
+    font-size: 1rem;
+  }
+`;
+
+// Styled AppBar with gradient background
+const StyledAppBar = styled(AppBar)`
+  background: linear-gradient(90deg, #ff5722, #ff9800, #ffc107);
+  color: white;
+  @media (max-width: 768px) {
+    padding: 0 1rem;
+  }
+`;
+
+const NavbarContainer = styled(Box)`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+`;
+
+const RightSection = styled(Box)`
+  display: flex;
+  align-items: center;
+`;
+
+const AnimatedIconButton = styled(IconButton)`
+  animation: ${slideIn} 0.5s ease-in-out;
 `;
 
 const Navbar = () => {
@@ -99,115 +138,76 @@ const Navbar = () => {
   const firstLetter = user?.username?.charAt(0).toUpperCase() || "";
 
   return (
-    <AppBar
-      position="static"
-      sx={{ backgroundColor: "#ffffff", color: "#000000", marginBottom: "5px" }}
-    >
+    <StyledAppBar position="static">
       <Toolbar>
-        <Typography
-          onClick={() => navigate("/")}
-          variant="h6"
-          component="div"
-          sx={{ flexGrow: 1, cursor: "pointer" }}
-        >
-          Smart Manager
-        </Typography>
-
-        {/* Conditionally render portal text based on user role */}
-        {user?.role ? (
-          <PortalText variant="h6">
-            {user?.role === "admin" ? "Admin Portal" : "Student Portal"}
-          </PortalText>
-        ) : null}
-
-        {user?.role !== "admin" && (
+        <NavbarContainer>
           <IconButton
-            size="large"
-            aria-label="show notifications"
+            edge="start"
             color="inherit"
-            onClick={(e) => handleNotificationClick(e)}
+            aria-label="menu"
+            sx={{ mr: 2, display: { sm: "none" } }}
+            onClick={handleMenu}
           >
-            <Badge badgeContent={notificationInfo?.length ?? 0} color="error">
-              <NotificationsIcon />
-            </Badge>
+            <MenuIcon />
           </IconButton>
-        )}
 
-        <Menu
-          anchorEl={notificationAnchorEl}
-          open={Boolean(notificationAnchorEl)}
-          onClose={handleNotificationClose}
-          PaperProps={{
-            style: {
-              maxHeight: 400,
-              width: "350px",
-              padding: "10px",
-            },
-          }}
-          TransitionComponent={Slide}
-        >
-          <Typography variant="h6" sx={{ padding: "10px" }}>
-            Notifications
+          <Typography
+            onClick={() => navigate("/")}
+            variant="h6"
+            component="div"
+            sx={{ cursor: "pointer" }}
+          >
+            Smart Manager
           </Typography>
-          <Divider />
-          <List>
-            {user?.notifications?.map((notification, index) => (
-              <ListItem
-                button
-                key={index}
-                onClick={() => handleNotificationItemClick(notification.taskId)}
-                sx={{
-                  backgroundColor: notification.seen ? "#f5f5f5" : "#e3f2fd",
-                  transition: "background-color 0.3s",
-                }}
-              >
-                <ListItemText
-                  primary={`Assigned By: Professor ${notification.assignerName}`}
-                  secondary={
-                    <Typography variant="body2" color="textSecondary">
-                      Task ID: {notification.taskId}
-                    </Typography>
-                  }
-                />
-              </ListItem>
-            ))}
-          </List>
-          {user?.notifications?.length === 0 && (
-            <Typography
-              variant="body2"
-              color="textSecondary"
-              align="center"
-              sx={{ padding: "10px" }}
-            >
-              No new notifications
-            </Typography>
-          )}
-        </Menu>
 
-        <Box sx={{ ml: 2 }}>
-          <IconButton onClick={handleMenu} color="inherit">
-            <Avatar>{firstLetter}</Avatar>
-          </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            keepMounted
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            open={Boolean(anchorEl)}
-            onClose={handleClose}
-          >
-            <MenuItem onClick={handleProfile}>Profile</MenuItem>
-            <MenuItem onClick={handleLogout}>Logout</MenuItem>
-          </Menu>
-        </Box>
+          {/* Conditionally render portal text based on user role */}
+          {user?.role ? (
+            <PortalText isAdmin={user?.role === "admin"} variant="h6">
+              {user?.role === "admin" ? "Admin Portal" : "Student Portal"}
+            </PortalText>
+          ) : null}
+
+          <RightSection>
+            {user?.role !== "admin" && (
+              <AnimatedIconButton
+                size="large"
+                aria-label="show notifications"
+                color="inherit"
+                onClick={(e) => handleNotificationClick(e)}
+              >
+                <Badge
+                  badgeContent={notificationInfo?.length ?? 0}
+                  color="error"
+                >
+                  <NotificationsIcon />
+                </Badge>
+              </AnimatedIconButton>
+            )}
+
+            <AnimatedIconButton onClick={handleMenu} color="inherit">
+              <Avatar>{firstLetter}</Avatar>
+            </AnimatedIconButton>
+            <Menu
+              anchorEl={anchorEl}
+              anchorOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+              keepMounted
+              transformOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+              open={Boolean(anchorEl)}
+              onClose={handleClose}
+            >
+              <MenuItem onClick={handleProfile}>Profile</MenuItem>
+              <MenuItem onClick={handleLogout}>Logout</MenuItem>
+            </Menu>
+          </RightSection>
+        </NavbarContainer>
       </Toolbar>
-    </AppBar>
+    </StyledAppBar>
   );
 };
 

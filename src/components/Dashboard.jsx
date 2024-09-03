@@ -11,6 +11,11 @@ import { ClipLoader } from "react-spinners";
 const DashboardContainer = styled.div`
   display: flex;
   height: 100vh;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    height: auto;
+  }
 `;
 
 export const LoadingContainer = styled.div`
@@ -19,6 +24,11 @@ export const LoadingContainer = styled.div`
   align-items: center;
   width: 100%;
   height: 100vh;
+
+  @media (max-width: 768px) {
+    height: 100%;
+    padding: 2rem;
+  }
 `;
 
 const Dashboard = () => {
@@ -44,11 +54,10 @@ const Dashboard = () => {
   if (loading) {
     return (
       <LoadingContainer>
-        <ClipLoader color={"#123abc"} loading={loading} size={150} />
+        <ClipLoader color={"#007bff"} loading={loading} size={150} />
       </LoadingContainer>
     );
   }
-  console.log({ tasks });
 
   return (
     <DashboardContainer>

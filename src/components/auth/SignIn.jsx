@@ -8,40 +8,53 @@ import {
 import { app, db } from "src/helpers/config";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useNavigate, Link } from "react-router-dom";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { logout } from "src/controllers/Firebase";
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const SignInContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #f8f9fa;
+  background-color: #e0f7fa;
+  animation: ${fadeIn} 0.5s ease-in-out;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
 `;
 
 const SignInBox = styled.div`
   background: white;
   padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
-  width: 400px;
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 400px;
+  animation: ${fadeIn} 0.5s ease-in-out;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+  }
 `;
 
 const Title = styled.h2`
   text-align: center;
   margin-bottom: 1.5rem;
+  color: #007bff;
 `;
-
-// const Button = styled.button`
-//   width: 100%;
-//   padding: 0.75rem;
-//   margin-top: 0.5rem;
-//   background-color: ${(props) => props.bgColor || "#007bff"};
-//   color: white;
-//   border: none;
-//   border-radius: 5px;
-//   cursor: pointer;
-// `;
 
 const Input = styled.input`
   width: 100%;
@@ -50,7 +63,13 @@ const Input = styled.input`
   margin-bottom: 0.5rem;
   border: 1px solid #ced4da;
   border-radius: 5px;
+  transition: border-color 0.3s ease;
+
+  &:focus {
+    border-color: #007bff;
+  }
 `;
+
 export default function SignIn() {
   const [role, setRole] = useState(null);
   const { register, handleSubmit } = useForm();
@@ -88,18 +107,13 @@ export default function SignIn() {
               setLoading(false);
             } else {
               setError("Invalid Data. Please contact support.");
-              // logout();
               setLoading(false);
             }
-
-            // ...
           })
           .catch((error) => {
             const errorCode = error.code;
             const errorMessage = error.message;
             setLoading(false);
-
-            // ...
           });
       } else {
         try {
@@ -128,20 +142,29 @@ export default function SignIn() {
       }
     }, 1000);
   };
+
   if (loading) {
     return (
-      <Box sx={{ display: "flex" }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
         <CircularProgress />
       </Box>
     );
   }
+
   if (!role) {
     return (
       <RoleSelectionContainer>
         <RoleSelectionBox>
           <h2>Select Your Role</h2>
-          <Button onClick={() => setRole("student")}>Student</Button>
-          <Button onClick={() => setRole("admin")}>Admin</Button>
+          <RoleButton onClick={() => setRole("student")}>Student</RoleButton>
+          <RoleButton onClick={() => setRole("admin")}>Admin</RoleButton>
         </RoleSelectionBox>
       </RoleSelectionContainer>
     );
@@ -150,9 +173,11 @@ export default function SignIn() {
   return (
     <SignInContainer>
       <SignInBox>
-        <h1>Task Management System </h1>
-        <Title>Sign In</Title>
-        <p>Welcome, Let's continue with,</p>
+        <h1 style={{ textAlign: "center", color: "#007bff" }}>
+          Task Management System
+        </h1>
+        <Title>{signup ? "Sign Up" : "Sign In"}</Title>
+        <p style={{ textAlign: "center" }}>Welcome, Let's continue with</p>
 
         <form
           style={{
@@ -162,7 +187,6 @@ export default function SignIn() {
           }}
           onSubmit={handleSubmit(onSubmit)}
         >
-          {" "}
           {signup && (
             <>
               <label>Name</label>
@@ -177,41 +201,63 @@ export default function SignIn() {
           <Input {...register("password")} />
           <br />
           <Button
-            variant="outlined"
-            style={{ marginLeft: "0px", marginRight: "0px" }}
+            variant="contained"
+            color="primary"
             type="submit"
+            style={{ marginTop: "1rem" }}
           >
-            {" "}
             {signup ? "Sign Up" : "Sign In"}
           </Button>
-          <p>
-            {" "}
+          <p style={{ textAlign: "center", marginTop: "1rem" }}>
             {signup
-              ? "Have an account please sign in below"
-              : "Don't have an account please sign up below"}
+              ? "Have an account? Sign in below"
+              : "Don't have an account? Sign up below"}
           </p>
           {error && <Typography color="error">{error}</Typography>}
-          <Button onClick={() => setSignUp(!signup)}>
-            {" "}
-            {!signup ? "Sign Up" : "Sign In"}
+          <Button
+            variant="text"
+            color="primary"
+            onClick={() => setSignUp(!signup)}
+          >
+            {signup ? "Sign In" : "Sign Up"}
           </Button>
         </form>
       </SignInBox>
     </SignInContainer>
   );
 }
+
 const RoleSelectionContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #f8f9fa;
+  background-color: #e0f7fa;
+  animation: ${fadeIn} 0.5s ease-in-out;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
 `;
 
 const RoleSelectionBox = styled.div`
   background: white;
   padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
   text-align: center;
+  animation: ${fadeIn} 0.5s ease-in-out;
+`;
+
+const RoleButton = styled(Button)`
+  margin-top: 1rem;
+  width: 100%;
+  background-color: #007bff;
+  color: white;
+  &:hover {
+    background-color: #0056b3;
+  }
+  &:not(:last-child) {
+    margin-bottom: 1rem;
+  }
 `;
