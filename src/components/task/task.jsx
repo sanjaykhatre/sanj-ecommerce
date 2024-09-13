@@ -250,6 +250,9 @@ const TaskPage = () => {
               <Typography variant="body2" sx={{ my: 1 }}>
                 Status: {task.status}
               </Typography>
+              <Typography variant="body2" sx={{ my: 1 }}>
+                TaskId: {task.id}
+              </Typography>
               <Box sx={{ my: 1 }}>
                 {task.assignedTo.map((student, index) => (
                   <Chip

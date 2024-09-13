@@ -89,10 +89,12 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log("called", { user });
     if (user?.notifications?.length) {
       const unseenNoti = user.notifications.filter(
         (noti) => noti.seen !== true
       );
+      console.log({ unseenNoti });
       setNotificationInfo(unseenNoti);
     }
   }, [user]);
@@ -117,25 +119,57 @@ const Navbar = () => {
 
   const handleNotificationClick = (event) => {
     setNotificationAnchorEl(event?.currentTarget);
-    const notifications = user.notifications.map((n) => {
-      n.seen = true;
-      return n;
-    });
 
-    markNotificationsAsSeen(user.id, notifications); // Assuming this function updates the notifications in Firebase
-    setNotificationInfo([]); // Clear the badge count after marking as seen
+    if (user?.notifications?.length) {
+      // Create a shallow copy of the notifications array
+      const notifications = user.notifications.map((n) => ({
+        ...n,
+        seen: true, // Mark as seen
+      }));
+
+      // Update the notifications in Firebase (assuming this works)
+      markNotificationsAsSeen(user.id, notifications);
+    } else {
+      // No notifications present, handle accordingly
+      setNotificationInfo([]);
+    }
   };
 
   const handleNotificationClose = () => {
     setNotificationAnchorEl(null);
+    setNotificationInfo([]);
   };
 
   const handleNotificationItemClick = (taskId) => {
-    navigate(`/task`);
+    navigate("/task");
     handleNotificationClose();
   };
 
   const firstLetter = user?.username?.charAt(0).toUpperCase() || "";
+
+  const renderNotificationList = () => {
+    if (!notificationInfo?.length) {
+      return (
+        <ListItem>
+          <ListItemText primary="No new notifications" />
+        </ListItem>
+      );
+    }
+
+    return notificationInfo.map((notification) => (
+      <ListItem
+        style={{ backgroundColor: "bisque" }}
+        key={notification.id}
+        onClick={() => handleNotificationItemClick(notification.taskId)}
+      >
+        <ListItemText
+          primary={`You have one notification form ${notification?.assignerName}`}
+        />
+        <br />
+        <ListItemText secondary={`TASK ID: ${notification?.taskId}`} />
+      </ListItem>
+    ));
+  };
 
   return (
     <StyledAppBar position="static">
@@ -203,6 +237,32 @@ const Navbar = () => {
             >
               <MenuItem onClick={handleProfile}>Profile</MenuItem>
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
+            </Menu>
+
+            {/* Notification Menu */}
+            <Menu
+              anchorEl={notificationAnchorEl}
+              anchorOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+              keepMounted
+              transformOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+              open={Boolean(notificationAnchorEl)}
+              onClose={handleNotificationClose}
+            >
+              <List
+                sx={{
+                  width: "100%",
+                  maxWidth: 360,
+                  bgcolor: "background.paper",
+                }}
+              >
+                {renderNotificationList()}
+              </List>
             </Menu>
           </RightSection>
         </NavbarContainer>

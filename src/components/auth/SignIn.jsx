@@ -4,6 +4,7 @@ import {
   createUserWithEmailAndPassword,
   getAuth,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail, // Import the function for password reset
 } from "firebase/auth";
 import { app, db } from "src/helpers/config";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
@@ -143,6 +144,21 @@ export default function SignIn() {
     }, 1000);
   };
 
+  const handleForgotPassword = async () => {
+    if (!signup) {
+      const email = prompt("Please enter your email for password reset:");
+      if (email) {
+        try {
+          await sendPasswordResetEmail(auth, email);
+          alert("Password reset email sent!");
+        } catch (error) {
+          console.error("Error sending password reset email:", error);
+          setError("Failed to send password reset email.");
+        }
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Box
@@ -208,6 +224,16 @@ export default function SignIn() {
           >
             {signup ? "Sign Up" : "Sign In"}
           </Button>
+          {!signup && (
+            <Button
+              variant="text"
+              color="primary"
+              onClick={handleForgotPassword}
+              style={{ marginTop: "1rem" }}
+            >
+              Forgot Password?
+            </Button>
+          )}
           <p style={{ textAlign: "center", marginTop: "1rem" }}>
             {signup
               ? "Have an account? Sign in below"
